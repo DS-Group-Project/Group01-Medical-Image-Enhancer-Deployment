@@ -1,0 +1,111 @@
+import { PutCommand, GetCommand, QueryCommand, TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { ddb, USERS_TABLE } from "./dynamoClient.js";
+import { randomUUID } from "crypto";
+import bcrypt from "bcrypt";
+
+const SALT_ROUNDS = 10;
+
+/** Create a user. Idempotent on userId, atomic email uniqueness check. */
+export async function createUser({ email, password, name, role = "user" }) {
+  const userId = randomUUID();
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const now = new Date().toISOString();
+
+  const user = {
+    userId, email, passwordHash, name, role, createdAt: now,
+    failedAttempts: 0, lockedUntil: null,
+  };
+
+  try {
+    await ddb.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Put: {
+            TableName: USERS_TABLE,
+            Item: user,
+            ConditionExpression: "attribute_not_exists(userId)",
+          },
+        },
+        {
+          Put: {
+            TableName: USERS_TABLE,
+            Item: { userId: `EMAIL#${email}` },
+            ConditionExpression: "attribute_not_exists(userId)",
+          },
+        },
+      ],
+    }));
+  } catch (err) {
+    if (err.name === "TransactionCanceledException" && err.message.includes("ConditionalCheckFailed")) {
+      throw new Error("EMAIL_ALREADY_EXISTS");
+    }
+    throw err;
+  }
+
+  // Never return the hash to callers — API layer should never see or log it.
+  const { passwordHash: _drop, ...safeUser } = user;
+  return safeUser;
+}
+
+/** Get a user by id (internal/API use, e.g. attaching user info to a job). */
+export async function getUserById(userId) {
+  const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId } }));
+  if (!res.Item) return null;
+  const { passwordHash: _drop, ...safeUser } = res.Item;
+  return safeUser;
+}
+
+/** Get a user by email — used at login. Returns the hash, since verifyPassword needs it. */
+export async function getUserByEmail(email) {
+  const res = await ddb.send(new QueryCommand({
+    TableName: USERS_TABLE,
+    IndexName: "EmailIndex",
+    KeyConditionExpression: "email = :e",
+    ExpressionAttributeValues: { ":e": email },
+    Limit: 1,
+  }));
+  return res.Items?.[0] ?? null;
+}
+
+/** Verify a plaintext password against a user's stored hash at login. */
+export async function verifyPassword(user, plaintextPassword) {
+  if (!user?.passwordHash) return false;
+  return bcrypt.compare(plaintextPassword, user.passwordHash);
+}
+
+/**
+ * Record a failed login attempt. Locks the account for `lockDurationMs`
+ * once `maxAttempts` is reached. Called only for accounts that exist —
+ * the route layer handles the "unknown email" case separately so failed
+ * attempts on unknown emails never touch DynamoDB.
+ */
+export async function recordFailedLogin(userId, maxAttempts = 5, lockDurationMs = 15 * 60 * 1000) {
+  const res = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { userId } }));
+  if (!res.Item) return;
+
+  const failedAttempts = (res.Item.failedAttempts || 0) + 1;
+  const updateValues = { ":f": failedAttempts };
+  let updateExpr = "SET failedAttempts = :f";
+
+  if (failedAttempts >= maxAttempts) {
+    updateValues[":l"] = new Date(Date.now() + lockDurationMs).toISOString();
+    updateExpr += ", lockedUntil = :l";
+  }
+
+  await ddb.send(new UpdateCommand({
+    TableName: USERS_TABLE,
+    Key: { userId },
+    UpdateExpression: updateExpr,
+    ExpressionAttributeValues: updateValues,
+  }));
+}
+
+/** Clear failed-attempt counter and lock after a successful login. */
+export async function resetFailedLogin(userId) {
+  await ddb.send(new UpdateCommand({
+    TableName: USERS_TABLE,
+    Key: { userId },
+    UpdateExpression: "SET failedAttempts = :z REMOVE lockedUntil",
+    ExpressionAttributeValues: { ":z": 0 },
+  }));
+}

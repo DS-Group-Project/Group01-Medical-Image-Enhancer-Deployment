@@ -1,0 +1,48 @@
+version: 2
+updates:
+  # Frontend NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Backend API NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Backend Database NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/backend/database"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Python OpenCV worker dependencies
+  - package-ecosystem: "pip"
+    directory: "/backend/worker"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Docker environments (if any base images need updates)
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/backend/worker"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

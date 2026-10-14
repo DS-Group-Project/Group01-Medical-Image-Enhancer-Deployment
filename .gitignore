@@ -1,127 +1,43 @@
-# ============================================================================
-# .gitignore — Medical Image Enhancer (Frontend)
-# Stack: Vite · React 18 · TailwindCSS · Node.js
-# ============================================================================
-
-# -------------------------------------------------------
-# Dependencies
-# -------------------------------------------------------
-node_modules/
-.pnp
-.pnp.js
-.pnp.cjs
-.yarn/install-state.gz
-
-# -------------------------------------------------------
-# Build / Output
-# -------------------------------------------------------
-dist/
-dist-ssr/
-build/
-out/
-*.tsbuildinfo
-
-# -------------------------------------------------------
-# Environment Variables (NEVER commit secrets)
-# -------------------------------------------------------
+# Environment variables
 .env
 .env.local
-.env.development
-.env.development.local
-.env.test
-.env.test.local
-.env.production
-.env.production.local
-.env.staging
-.env.staging.local
+.env.*.local
 
-# -------------------------------------------------------
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Build output
+dist/
+build/
+*.min.js.map
+
 # Logs
-# -------------------------------------------------------
-logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+logs/
 
-# -------------------------------------------------------
-# Runtime & Cache
-# -------------------------------------------------------
-*.local
-.cache/
-.parcel-cache/
-.vite/
-*.pid
-*.seed
-*.pid.lock
-
-# -------------------------------------------------------
-# Testing & Coverage
-# -------------------------------------------------------
-coverage/
-*.lcov
-.nyc_output/
-test-results/
-playwright-report/
-junit.xml
-
-# -------------------------------------------------------
-# OS-generated files
-# -------------------------------------------------------
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
 Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-Desktop.ini
-$RECYCLE.BIN/
-*.lnk
 
-# -------------------------------------------------------
-# IDE / Editor files
-# -------------------------------------------------------
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
+# IDE
+.vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-*.swp
-*.swo
-*~
-.project
-.classpath
-.settings/
 
-# -------------------------------------------------------
-# Docker (local overrides)
-# -------------------------------------------------------
-docker-compose.override.yml
-.docker/
-
-# -------------------------------------------------------
-# CI / CD Artifacts
-# -------------------------------------------------------
-.vercel
-.netlify
-.serverless/
-
-# -------------------------------------------------------
-# Miscellaneous
-# -------------------------------------------------------
-*.tgz
-*.tar.gz
-*.zip
-.eslintcache
-.stylelintcache
-.prettiercache
-storybook-static/
+# Docker
+*.pid
