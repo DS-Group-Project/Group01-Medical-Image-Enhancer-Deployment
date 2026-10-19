@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, Loader2, Image as ImageIcon, CheckCircle, AlertCircle, Clock, ArrowRight } from 'lucide-react';
+import { UploadCloud, Loader2, Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { mockUploadService, mockStats, mockJobs } from '../services/mockData';
+import { mockUploadService } from '../services/mockData';
 import StatusBadge from '../components/ui/StatusBadge';
 import { safeLog } from '../utils/safeLog';
 import { uploadService } from '../services/uploadService';
+import { ScanThumbnail } from '../components/ui/ScanThumbnail';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,13 +21,12 @@ export default function DashboardPage() {
       setLoading(true);
       try {
         if (USE_MOCK) {
-          const result = await mockUploadService.getJobs({ limit: 5 });
-          setJobs(result.jobs);
-          setStats(mockStats);
+          const result = await mockUploadService.getJobs({ limit: 4 });
+          setJobs((result.jobs || []).slice(0, 4));
         } else {
-          // Use real uploadService
-          const result = await uploadService.getJobs({ limit: 5 });
-          setJobs(result.jobs || []);
+          const result = await uploadService.getJobs({ limit: 10 });
+          const allJobs = result.jobs || [];
+          setJobs(allJobs.slice(0, 4));
         }
       } catch (error) {
         safeLog.error('Failed to fetch dashboard data:', error?.message || error);
@@ -54,37 +53,6 @@ export default function DashboardPage() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { ease: 'easeOut', duration: 0.5 } }
   };
-
-  const statCards = stats ? [
-    { 
-      label: 'Total Uploads', 
-      value: stats.totalUploads, 
-      icon: <ImageIcon size={24} className="text-teal-600" />,
-      colorClass: 'bg-teal-50',
-      borderColor: 'border-teal-100'
-    },
-    { 
-      label: 'Processing', 
-      value: stats.processing, 
-      icon: <Loader2 size={24} className="text-amber-600 animate-spin" />,
-      colorClass: 'bg-amber-50',
-      borderColor: 'border-amber-100'
-    },
-    { 
-      label: 'Completed', 
-      value: stats.completed, 
-      icon: <CheckCircle size={24} className="text-emerald-600" />,
-      colorClass: 'bg-emerald-50',
-      borderColor: 'border-emerald-100'
-    },
-    { 
-      label: 'Failed', 
-      value: stats.failed, 
-      icon: <AlertCircle size={24} className="text-red-500" />,
-      colorClass: 'bg-red-50',
-      borderColor: 'border-red-100'
-    },
-  ] : [];
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -133,48 +101,6 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
-      <motion.div variants={childVariants}>
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 animate-pulse">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-3">
-                    <div className="h-4 w-20 bg-slate-200 rounded"></div>
-                    <div className="h-8 w-16 bg-slate-200 rounded"></div>
-                  </div>
-                  <div className="w-12 h-12 bg-slate-200 rounded-full"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {statCards.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-                className={`bg-white p-6 rounded-2xl shadow-sm border ${stat.borderColor} hover:shadow-md transition-shadow cursor-default`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 font-medium">{stat.label}</p>
-                    <p className="text-3xl font-bold text-slate-900 mt-1">{stat.value}</p>
-                  </div>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stat.colorClass}`}>
-                    {stat.icon}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
-
       {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -189,9 +115,9 @@ export default function DashboardPage() {
             </div>
             {loading ? (
               <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
+                {[...Array(4)].map((_, i) => (
                   <div key={i} className="flex items-center gap-4 p-3 animate-pulse">
-                    <div className="w-10 h-10 bg-slate-200 rounded-lg"></div>
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-200 rounded-xl shrink-0"></div>
                     <div className="flex-1 space-y-2">
                       <div className="h-4 w-32 bg-slate-200 rounded"></div>
                       <div className="h-3 w-20 bg-slate-200 rounded"></div>
@@ -206,28 +132,43 @@ export default function DashboardPage() {
                 <p className="text-slate-500 text-sm">No recent activity. Upload your first image!</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {jobs.map((job) => (
-                  <Link
-                    key={job.id}
-                    to={job.status === 'completed' ? `/viewer/${job.id}` : `/processing/${job.id}`}
-                    className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors group"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center text-teal-600">
-                        <ImageIcon size={20} />
+              <div className="space-y-2.5">
+                {jobs.map((job) => {
+                  const id = job.id || job.jobId;
+                  return (
+                    <Link
+                      key={id}
+                      to={job.status === 'completed' ? `/viewer/${id}` : `/processing/${id}`}
+                      className="flex items-center justify-between p-3.5 hover:bg-slate-50 rounded-2xl border border-transparent hover:border-slate-100 transition-all group"
+                    >
+                      <div className="flex items-center space-x-4">
+                        {/* Visible Scan Thumbnail matching History section size */}
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-950 rounded-xl overflow-hidden border border-slate-700/60 shrink-0 flex items-center justify-center shadow-md">
+                          <ScanThumbnail
+                            jobId={id}
+                            src={job.thumbnailUrl || job.enhancedUrl || job.originalUrl}
+                            alt={job.filename}
+                            className="w-full h-full rounded-xl group-hover:scale-105 transition-transform duration-300"
+                            fallbackIconSize={28}
+                          />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900 text-sm sm:text-base group-hover:text-teal-600 transition-colors truncate max-w-[180px] sm:max-w-xs md:max-w-md">{job.filename}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[11px] font-medium px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md capitalize border border-slate-200/60">
+                              {job.bodyPart || 'Scan'}
+                            </span>
+                            <span className="text-xs text-slate-400">{formatDate(job.createdAt)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-slate-900 text-sm group-hover:text-teal-600 transition-colors">{job.filename}</p>
-                        <p className="text-xs text-slate-500">{formatDate(job.createdAt)}</p>
+                      <div className="flex items-center gap-3">
+                        <StatusBadge status={job.status} size="sm" />
+                        <ArrowRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <StatusBadge status={job.status} size="sm" />
-                      <ArrowRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>

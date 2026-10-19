@@ -22,7 +22,7 @@ import rateLimit from "express-rate-limit";
 const router = Router();
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 30 seconds blocking
+  windowMs: 15 * 60 * 1000, // 15min blocking
   max: 100, // limit each IP to 100 requests per windowMs
   message: { error: "Too many authentication attempts, please try again later." },
 });

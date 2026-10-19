@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, FileImage, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { ScanThumbnail } from '../ui/ScanThumbnail';
 
 const StatusBadge = ({ status }) => {
   const config = {
@@ -97,12 +98,14 @@ const RecentActivity = ({ jobs = [] }) => {
                 className="hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 <div className="px-6 py-4 flex items-center">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center mr-4">
-                    {job.thumbnail ? (
-                      <img src={job.thumbnail} alt={job.filename} className="w-full h-full object-cover" />
-                    ) : (
-                      <FileImage className="w-5 h-5 text-slate-400" />
-                    )}
+                  <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-950 border border-slate-700/60 flex items-center justify-center mr-4 shadow-md group">
+                    <ScanThumbnail
+                      jobId={job.id || job.jobId}
+                      src={job.thumbnailUrl || job.thumbnail || job.enhancedUrl || job.originalUrl}
+                      alt={job.filename}
+                      className="w-full h-full rounded-xl group-hover:scale-105 transition-transform duration-300"
+                      fallbackIconSize={28}
+                    />
                   </div>
                   
                   <div className="flex-1 min-w-0 pr-4">

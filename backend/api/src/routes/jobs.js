@@ -12,11 +12,22 @@ import logger from "../utils/logger.js";
 
 const router = Router();
 
+/**
+ * Lightweight helper to infer body part from filename if worker hasn't classified it yet
+ */
+function inferBodyPart(filename = "") {
+  const name = filename.toLowerCase();
+  if (name.includes("hand") || name.includes("wrist") || name.includes("finger")) return "hand";
+  if (name.includes("leg") || name.includes("knee") || name.includes("tibia") || name.includes("femur") || name.includes("ankle") || name.includes("foot")) return "leg";
+  if (name.includes("chest") || name.includes("thorax") || name.includes("lung")) return "chest";
+  if (name.includes("head") || name.includes("skull") || name.includes("brain")) return "head";
+  return "unspecified";
+}
+
 /** POST /jobs  – any authenticated user can create a job for themselves */
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const { filename, originalKey } = req.body;
-    // Force the job to belong to the authenticated user
+    const { filename, originalKey, bodyPart } = req.body;
     const userId = req.user.userId;
 
     if (!filename || !originalKey) {
@@ -25,7 +36,15 @@ router.post("/", requireAuth, async (req, res, next) => {
       });
     }
 
-    const job = await createJob({ userId, filename, originalKey });
+    // Explicit bodyPart or fallback inferred from filename
+    const resolvedBodyPart = bodyPart || inferBodyPart(filename);
+
+    const job = await createJob({ 
+      userId, 
+      filename, 
+      originalKey,
+      bodyPart: resolvedBodyPart 
+    });
     res.status(201).json(job);
   } catch (err) {
     next(err);
@@ -48,14 +67,30 @@ router.get("/:jobId", requireAuth, async (req, res, next) => {
 
     logger.info({ action: "audit_view_job", jobId: job.jobId, userId: req.user.userId }, "User viewed job details");
 
+    const hasEnhanced = Boolean(job.enhancedKey);
+    const streamType = hasEnhanced ? "enhanced" : "original";
+    const thumbnailUrl = (job.enhancedKey || job.originalKey)
+      ? `/jobs/${job.jobId}/image/stream?type=${streamType}`
+      : (job.thumbnailUrl || null);
+
     res.json({
       id: job.jobId,
       jobId: job.jobId,
       filename: job.filename,
+      fileSize: job.fileSize ?? null,
       status: job.status,
+      bodyPart: job.bodyPart || inferBodyPart(job.filename),
       createdAt: job.createdAt,
       completedAt: job.completedAt,
       progress: job.progress,
+      originalUrl: job.originalUrl || null,
+      enhancedUrl: job.enhancedUrl || null,
+      thumbnailUrl,
+      analysis: job.analysis || null,
+      customFractureMarker: job.customFractureMarker || null,
+      fractureDetected: Boolean(job.fractureDetected),
+      fracturesCount: job.fracturesCount || 0,
+      fractures: job.fractures || [],
     });
   } catch (err) {
     next(err);
@@ -91,12 +126,16 @@ router.patch("/:jobId/processing", requireAuth, requireRole(["worker", "admin"])
 /** PATCH /jobs/:jobId/completed */
 router.patch("/:jobId/completed", requireAuth, requireRole(["worker", "admin"]), async (req, res, next) => {
   try {
-    const { enhancedKey } = req.body;
+    const { enhancedKey, bodyPart } = req.body;
     if (!enhancedKey) {
       return res.status(400).json({ error: "enhancedKey is required" });
     }
 
-    await markCompleted(req.params.jobId, enhancedKey);
+    // Existing job check to retain or update bodyPart
+    const existingJob = await getJob(req.params.jobId);
+    const finalBodyPart = bodyPart || existingJob?.bodyPart || inferBodyPart(existingJob?.filename);
+
+    await markCompleted(req.params.jobId, enhancedKey, finalBodyPart);
     const job = await getJob(req.params.jobId);
     res.json(job);
   } catch (err) {

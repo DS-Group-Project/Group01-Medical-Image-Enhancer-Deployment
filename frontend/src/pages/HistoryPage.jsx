@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Filter, LayoutGrid, List as ListIcon, 
   ChevronLeft, ChevronRight, Eye, ArrowDown, Trash2,
-  Inbox
+  Inbox, CheckSquare, Square, X
 } from 'lucide-react';
 import { uploadService } from '../services/uploadService';
 import { sanitizeSearchQuery } from '../utils/inputSanitizer';
 import StatusBadge from '../components/ui/StatusBadge';
+import { ScanThumbnail } from '../components/ui/ScanThumbnail';
 import toast from 'react-hot-toast';
 import { safeLog } from '../utils/safeLog';
 
@@ -19,6 +20,8 @@ const HistoryPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
+  const [selectedJobIds, setSelectedJobIds] = useState([]);
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,11 +62,30 @@ const HistoryPage = () => {
     currentPage * itemsPerPage
   );
 
+  const paginatedJobIds = paginatedJobs.map(j => j.id || j.jobId);
+  const isAllPaginatedSelected = paginatedJobIds.length > 0 && paginatedJobIds.every(id => selectedJobIds.includes(id));
+
+  const handleToggleSelect = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedJobIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (isAllPaginatedSelected) {
+      setSelectedJobIds(prev => prev.filter(id => !paginatedJobIds.includes(id)));
+    } else {
+      setSelectedJobIds(prev => Array.from(new Set([...prev, ...paginatedJobIds])));
+    }
+  };
+
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this record?')) {
+    if (window.confirm('Are you sure you want to permanently delete this scan? This will remove both the original and enhanced images.')) {
       try {
         await uploadService.deleteJob(id);
-        setJobs(jobs.filter(j => j.id !== id));
+        setJobs(prev => prev.filter(j => (j.id || j.jobId) !== id));
+        setSelectedJobIds(prev => prev.filter(item => item !== id));
         toast.success('Record deleted successfully');
       } catch (error) {
         safeLog.error('Failed to delete job:', error?.message || error);
@@ -72,11 +94,31 @@ const HistoryPage = () => {
     }
   };
 
+  const handleBatchDelete = async () => {
+    if (selectedJobIds.length === 0) return;
+    const count = selectedJobIds.length;
+    if (window.confirm(`Are you sure you want to permanently delete ${count} selected scan(s)? This will remove both original and enhanced images from the system.`)) {
+      try {
+        setIsDeletingBatch(true);
+        await uploadService.deleteBatchJobs(selectedJobIds);
+        setJobs(prev => prev.filter(j => !selectedJobIds.includes(j.id || j.jobId)));
+        setSelectedJobIds([]);
+        toast.success(`Successfully deleted ${count} record(s)`);
+      } catch (error) {
+        safeLog.error('Failed to delete batch jobs:', error?.message || error);
+        toast.error('Failed to delete selected records. Please try again.');
+      } finally {
+        setIsDeletingBatch(false);
+      }
+    }
+  };
+
   const handleRowClick = (job) => {
+    const id = job.id || job.jobId;
     if (job.status === 'completed') {
-      navigate(`/viewer/${job.id}`);
+      navigate(`/viewer/${id}`);
     } else {
-      navigate(`/processing/${job.id}`);
+      navigate(`/processing/${id}`);
     }
   };
 
@@ -95,7 +137,7 @@ const HistoryPage = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto w-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Enhancement History</h1>
           <p className="text-slate-500">Total {jobs.length} records found</p>
@@ -119,12 +161,14 @@ const HistoryPage = () => {
             <button 
               onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Table view"
             >
               <ListIcon size={18} />
             </button>
             <button 
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
+              title="Grid view"
             >
               <LayoutGrid size={18} />
             </button>
@@ -151,6 +195,43 @@ const HistoryPage = () => {
           </button>
         ))}
       </div>
+
+      {/* Batch Selection Action Bar */}
+      <AnimatePresence>
+        {selectedJobIds.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 p-3.5 bg-slate-900 text-white rounded-xl shadow-md flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-500 text-white text-xs font-bold">
+                {selectedJobIds.length}
+              </span>
+              <span className="text-sm font-medium text-slate-200">
+                {selectedJobIds.length === 1 ? '1 file selected' : `${selectedJobIds.length} files selected`}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedJobIds([])}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-1"
+              >
+                <X size={14} /> Clear
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={isDeletingBatch}
+                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center gap-1.5 transition-all"
+              >
+                <Trash2 size={14} />
+                <span>{isDeletingBatch ? 'Deleting...' : `Delete Selected (${selectedJobIds.length})`}</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content Area */}
       {loading ? (
@@ -194,7 +275,20 @@ const HistoryPage = () => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-200 text-sm text-slate-500 font-medium">
-                      <th className="py-4 px-6">File</th>
+                      <th className="py-4 pl-6 pr-2 w-10">
+                        <button 
+                          onClick={handleToggleSelectAll}
+                          className="text-slate-400 hover:text-teal-600 transition-colors p-1"
+                          title={isAllPaginatedSelected ? 'Deselect all on this page' : 'Select all on this page'}
+                        >
+                          {isAllPaginatedSelected ? (
+                            <CheckSquare size={18} className="text-teal-600" />
+                          ) : (
+                            <Square size={18} />
+                          )}
+                        </button>
+                      </th>
+                      <th className="py-4 px-4">File</th>
                       <th className="py-4 px-6">Upload Date</th>
                       <th className="py-4 px-6">Status</th>
                       <th className="py-4 px-6 text-right">Actions</th>
@@ -206,64 +300,87 @@ const HistoryPage = () => {
                     animate="show"
                     className="divide-y divide-slate-100"
                   >
-                    {paginatedJobs.map((job) => (
-                      <motion.tr 
-                        key={job.id} 
-                        variants={itemVariants}
-                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                        onClick={() => handleRowClick(job)}
-                      >
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex items-center justify-center shrink-0 border border-slate-200">
-                              {job.thumbnailUrl ? (
-                                <img src={job.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    {paginatedJobs.map((job) => {
+                      const id = job.id || job.jobId;
+                      const isSelected = selectedJobIds.includes(id);
+
+                      return (
+                        <motion.tr 
+                          key={id} 
+                          variants={itemVariants}
+                          className={`transition-colors group cursor-pointer ${isSelected ? 'bg-teal-50/60' : 'hover:bg-slate-50/80'}`}
+                          onClick={() => handleRowClick(job)}
+                        >
+                          <td className="py-4 pl-6 pr-2" onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              onClick={(e) => handleToggleSelect(id, e)}
+                              className="text-slate-400 hover:text-teal-600 transition-colors p-1"
+                              title={isSelected ? 'Deselect' : 'Select'}
+                            >
+                              {isSelected ? (
+                                <CheckSquare size={18} className="text-teal-600" />
                               ) : (
-                                <div className="w-full h-full bg-teal-50 flex items-center justify-center text-teal-500 font-bold text-xs">
-                                  {job.filename.substring(0,2).toUpperCase()}
-                                </div>
+                                <Square size={18} />
                               )}
-                            </div>
-                            <div className="truncate max-w-[200px] md:max-w-xs font-medium text-slate-800">
-                              {job.filename}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 text-slate-500 text-sm">
-                          {new Date(job.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="py-4 px-6">
-                          <StatusBadge status={job.status} />
-                        </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleRowClick(job); }}
-                              className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                              title="View"
-                            >
-                              <Eye size={18} />
                             </button>
-                            {job.status === 'completed' && (
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-950 overflow-hidden flex items-center justify-center shrink-0 border border-slate-700/60 shadow-sm">
+                                <ScanThumbnail
+                                  jobId={id}
+                                  src={job.thumbnailUrl || job.thumbnail || job.enhancedUrl || job.originalUrl}
+                                  alt={job.filename}
+                                  className="w-full h-full rounded-xl"
+                                  fallbackIconSize={28}
+                                />
+                              </div>
+                              <div className="truncate max-w-[200px] md:max-w-xs font-medium text-slate-800">
+                                {job.filename}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 text-slate-500 text-sm">
+                            {new Date(job.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-4 px-6">
+                            <StatusBadge status={job.status} />
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button 
-                                onClick={(e) => { e.stopPropagation(); toast.success('Download started'); }}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                title="Download"
+                                onClick={(e) => { e.stopPropagation(); handleRowClick(job); }}
+                                className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                                title="View"
                               >
-                                <ArrowDown size={18} />
+                                <Eye size={18} />
                               </button>
-                            )}
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleDelete(job.id); }}
-                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    ))}
+                              {job.status === 'completed' && (
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    uploadService.downloadImage(id, 'enhanced')
+                                      .then(() => toast.success('Download started'))
+                                      .catch(() => toast.error('Download failed')); 
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Download"
+                                >
+                                  <ArrowDown size={18} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDelete(id); }}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete Scan"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
                   </motion.tbody>
                 </table>
               </div>
@@ -275,43 +392,64 @@ const HistoryPage = () => {
               animate="show"
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
             >
-              {paginatedJobs.map((job) => (
-                <motion.div 
-                  key={job.id}
-                  variants={itemVariants}
-                  onClick={() => handleRowClick(job)}
-                  className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group flex flex-col h-full"
-                >
-                  <div className="aspect-video bg-slate-100 relative overflow-hidden">
-                    {job.thumbnailUrl ? (
-                      <img src={job.thumbnailUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-teal-50 to-indigo-50 flex items-center justify-center">
-                        <span className="text-teal-300 font-bold text-4xl opacity-50">{job.filename.substring(0,3).toUpperCase()}</span>
+              {paginatedJobs.map((job) => {
+                const id = job.id || job.jobId;
+                const isSelected = selectedJobIds.includes(id);
+
+                return (
+                  <motion.div 
+                    key={id}
+                    variants={itemVariants}
+                    onClick={() => handleRowClick(job)}
+                    className={`bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer group flex flex-col h-full ${
+                      isSelected ? 'border-teal-500 ring-2 ring-teal-500/20' : 'border-slate-200'
+                    }`}
+                  >
+                    <div className="aspect-video bg-slate-950 relative overflow-hidden flex items-center justify-center">
+                      <ScanThumbnail
+                        jobId={id}
+                        src={job.thumbnailUrl || job.thumbnail || job.enhancedUrl || job.originalUrl}
+                        alt={job.filename}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500"
+                        fallbackIconSize={40}
+                      />
+                      <div className="absolute top-3 left-3" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => handleToggleSelect(id, e)}
+                          className={`p-1.5 rounded-lg backdrop-blur-md transition-colors ${
+                            isSelected 
+                              ? 'bg-teal-500 text-white shadow-sm' 
+                              : 'bg-black/40 text-white/80 hover:bg-black/60 hover:text-white'
+                          }`}
+                          title={isSelected ? 'Deselect' : 'Select'}
+                        >
+                          {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                        </button>
                       </div>
-                    )}
-                    <div className="absolute top-3 right-3">
-                      <StatusBadge status={job.status} />
+                      <div className="absolute top-3 right-3">
+                        <StatusBadge status={job.status} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-4 flex flex-col flex-1">
-                    <h3 className="font-semibold text-slate-800 truncate mb-1" title={job.filename}>{job.filename}</h3>
-                    <p className="text-xs text-slate-500 mb-4">{new Date(job.createdAt).toLocaleDateString()}</p>
-                    
-                    <div className="mt-auto flex justify-between items-center border-t border-slate-100 pt-3">
-                      <button className="text-sm font-medium text-teal-600 flex items-center gap-1 group-hover:text-teal-700">
-                        <Eye size={16} /> View Details
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDelete(job.id); }}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <div className="p-4 flex flex-col flex-1">
+                      <h3 className="font-semibold text-slate-800 truncate mb-1" title={job.filename}>{job.filename}</h3>
+                      <p className="text-xs text-slate-500 mb-4">{new Date(job.createdAt).toLocaleDateString()}</p>
+                      
+                      <div className="mt-auto flex justify-between items-center border-t border-slate-100 pt-3">
+                        <button className="text-sm font-medium text-teal-600 flex items-center gap-1 group-hover:text-teal-700">
+                          <Eye size={16} /> View Details
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(id); }}
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                          title="Delete Scan"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
 

@@ -15,7 +15,8 @@ import {
 
 import FileUploadZone from '../components/upload/FileUploadZone';
 import FilePreviewCard from '../components/upload/FilePreviewCard';
-import { formatFileSize } from '../utils/helpers';
+import PatientIdModal from '../components/upload/PatientIdModal';
+import { formatFileSize, buildBatchUrl } from '../utils/helpers';
 import { sanitizeFilename } from '../utils/fileValidation';
 import { uploadService } from '../services/uploadService';
 import { mockUploadService } from '../services/mockData';
@@ -27,6 +28,8 @@ const activeUploadService = USE_MOCK ? mockUploadService : uploadService;
 export default function UploadPage() {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
+  const [pendingFiles, setPendingFiles] = useState([]);
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -37,18 +40,35 @@ export default function UploadPage() {
       toast.error('Some files were rejected. Please check file type and size.');
     }
     
+    if (acceptedFiles && acceptedFiles.length > 0) {
+      setPendingFiles(acceptedFiles);
+      setIsPatientModalOpen(true);
+    }
+  }, []);
+
+  const handlePatientIdConfirm = (renamedFiles) => {
     setFiles(prev => {
       const newFiles = [...prev];
-      acceptedFiles.forEach(file => {
-        // Sanitize file name before adding
-        const safeName = sanitizeFilename(file.name);
+      renamedFiles.forEach(file => {
         if (!newFiles.some(f => f.name === file.name && f.size === file.size)) {
           newFiles.push(file);
         }
       });
       return newFiles;
     });
-  }, []);
+    setPendingFiles([]);
+    setIsPatientModalOpen(false);
+    toast.success(
+      renamedFiles.length === 1
+        ? 'Clinical asset registered with Patient ID.'
+        : `${renamedFiles.length} clinical assets registered with Patient ID(s).`
+    );
+  };
+
+  const handlePatientIdCancel = () => {
+    setPendingFiles([]);
+    setIsPatientModalOpen(false);
+  };
 
   const removeFile = (fileToRemove) => {
     setFiles(files.filter(file => file !== fileToRemove));
@@ -120,16 +140,23 @@ export default function UploadPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
-                onClick={() => navigate(`/processing/${jobIds[0]}`)}
-                className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+                onClick={() => {
+                  const targetUrl = buildBatchUrl('/processing', jobIds[0], jobIds);
+                  navigate(targetUrl, { state: { jobIds } });
+                }}
+                className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
               >
-                Start Enhancement
+                <Sparkles className="w-5 h-5" />
+                <span>
+                  {jobIds.length > 1 ? `Start Batch Enhancement (${jobIds.length} Scans)` : 'Start Enhancement'}
+                </span>
               </button>
               <button
                 onClick={() => {
                   setFiles([]);
                   setUploadComplete(false);
                   setUploadProgress(0);
+                  setJobIds([]);
                 }}
                 className="w-full sm:w-auto px-8 py-3 bg-white border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors"
               >
@@ -140,7 +167,10 @@ export default function UploadPage() {
         ) : (
           <>
             {/* Upload Zone */}
-            <FileUploadZone onFilesSelected={onFilesSelected} isUploading={isUploading} />
+            <FileUploadZone 
+              onFilesSelected={onFilesSelected} 
+              disabled={isUploading || isPatientModalOpen} 
+            />
 
             {/* Selected Files Section */}
             <AnimatePresence>
@@ -238,6 +268,14 @@ export default function UploadPage() {
           </>
         )}
       </div>
+      
+      {/* Patient Identification Modal */}
+      <PatientIdModal
+        isOpen={isPatientModalOpen}
+        pendingFiles={pendingFiles}
+        onConfirm={handlePatientIdConfirm}
+        onCancel={handlePatientIdCancel}
+      />
     </motion.div>
   );
 }

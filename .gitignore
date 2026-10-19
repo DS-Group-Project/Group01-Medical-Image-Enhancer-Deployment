@@ -2,6 +2,13 @@
 .env
 .env.local
 .env.*.local
+backend/api/.env
+frontend/.env
+
+# Kaggle / Secrets
+kaggle.json
+*.pem
+*.key
 
 # Dependencies
 node_modules/
@@ -15,27 +22,31 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
-dist/
-build/
-*.egg
 .venv/
 venv/
 env/
 
-# Build output
+# Training artifacts & runs (large datasets and training checkpoints)
+trained_models/
+runs/
+.cache/
+
+# Build outputs
 dist/
 build/
 *.min.js.map
+*.zip
 
 # Logs
 *.log
 logs/
+npm-debug.log*
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE & Editor files
 .vscode/
 .idea/
 

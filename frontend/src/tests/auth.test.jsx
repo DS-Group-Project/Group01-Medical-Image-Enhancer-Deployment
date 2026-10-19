@@ -92,7 +92,7 @@ describe('Frontend Auth Flows', () => {
           password: 'StrongP@ssw0rd1',
           confirmPassword: 'StrongP@ssw0rd1'
         });
-        expect(mockNavigate).toHaveBeenCalledWith('/login');
+        expect(mockNavigate).toHaveBeenCalledWith('/');
       });
     });
   });

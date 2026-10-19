@@ -23,5 +23,16 @@ export function errorHandler(err, req, res, next) {
     return res.status(400).json({ error: err.message || "BAD_REQUEST" });
   }
 
+  // Multer upload errors (file size limit, max count, unexpected fields)
+  if (err.name === "MulterError") {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: "FILE_TOO_LARGE", message: "File exceeds the 50MB size limit." });
+    }
+    if (err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({ error: "TOO_MANY_FILES", message: "Batch exceeds allowed image limit. Maximum is 100 images." });
+    }
+    return res.status(400).json({ error: "UPLOAD_ERROR", message: err.message });
+  }
+
   res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
 }

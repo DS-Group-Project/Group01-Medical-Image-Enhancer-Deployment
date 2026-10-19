@@ -5,10 +5,6 @@ import { resetCsrfToken } from '../services/api';
 
 export const AuthContext = createContext(null);
 
-/**
- * Custom hook to consume the AuthContext.
- * Throws an error if used outside of an AuthProvider.
- */
 export const useAuth = () => {
   const context = React.useContext(AuthContext);
   if (!context) {
@@ -17,33 +13,27 @@ export const useAuth = () => {
   return context;
 };
 
-// Only ever use the mock service when explicitly opted in via env var. The
-// previous `|| true` fallback here meant mock auth silently stayed active
-// even in a production build that forgot to set VITE_USE_MOCK=false, which
-// would let anyone "log in" with no real credential check. Fail closed instead:
-// no explicit "true" means we talk to the real backend.
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 const activeAuthService = USE_MOCK ? mockAuthService : authService;
 
-// Auto-logout after this many ms of inactivity. Medical-imaging apps
-// commonly enforce a short idle timeout so a session left open on a shared
-// workstation doesn't stay live indefinitely. This is a UX-layer safeguard;
-// the backend should independently expire the session cookie server-side too.
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+// Total idle duration: 15 minutes
+const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+// Warning duration: final 10 seconds
+const WARNING_DURATION_SEC = 10;
+const WARNING_TIME_MS = IDLE_TIMEOUT_MS - WARNING_DURATION_SEC * 1000;
+const ACTIVITY_EVENTS = ['mousemove','mousedown', 'keydown', 'touchstart', 'scroll'];
 
-/**
- * AuthProvider component that wraps the application to provide authentication context.
- *
- * Authentication state is derived by asking the server (getCurrentUser), not
- * by reading a client-side token, because the real session lives in an
- * HttpOnly cookie the frontend cannot and should not read directly.
- */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Warning & Countdown states
+  const [isIdleWarningOpen, setIsIdleWarningOpen] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(WARNING_DURATION_SEC);
+
   const idleTimerRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -86,35 +76,60 @@ export const AuthProvider = ({ children }) => {
     try {
       await activeAuthService.logout();
     } catch (error) {
-      // Even if the server call fails, drop local auth state so the UI
-      // doesn't keep showing the user as logged in.
+      // Drop local auth state even if server logout call fails
     } finally {
       setUser(null);
       setIsAuthenticated(false);
+      setIsIdleWarningOpen(false);
       if (!options.silent) {
         window.location.href = '/login';
       }
     }
   }, []);
 
-  // Idle-timeout auto logout, only while authenticated.
+  // Idle timeout and 10-second countdown logic
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
-    const resetIdleTimer = () => {
+    const clearAllTimers = () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+
+    const startCountdown = () => {
+      setIsIdleWarningOpen(true);
+      setRemainingTime(WARNING_DURATION_SEC);
+
+      let timeLeft = WARNING_DURATION_SEC;
+      countdownIntervalRef.current = setInterval(() => {
+        timeLeft -= 1;
+        setRemainingTime(timeLeft);
+
+        if (timeLeft <= 0) {
+          clearInterval(countdownIntervalRef.current);
+          setIsIdleWarningOpen(false);
+          logout({ silent: true }).finally(() => {
+            window.location.href = '/login?reason=idle';
+          });
+        }
+      }, 1000);
+    };
+
+    const resetIdleTimer = () => {
+      clearAllTimers();
+      setIsIdleWarningOpen(false);
+      setRemainingTime(WARNING_DURATION_SEC);
+
       idleTimerRef.current = setTimeout(() => {
-        logout({ silent: true }).finally(() => {
-          window.location.href = '/login?reason=idle';
-        });
-      }, IDLE_TIMEOUT_MS);
+        startCountdown();
+      }, WARNING_TIME_MS);
     };
 
     resetIdleTimer();
     ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, resetIdleTimer));
 
     return () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      clearAllTimers();
       ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, resetIdleTimer));
     };
   }, [isAuthenticated, logout]);
@@ -126,6 +141,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    isIdleWarningOpen,
+    remainingTime,
   };
 
   return (

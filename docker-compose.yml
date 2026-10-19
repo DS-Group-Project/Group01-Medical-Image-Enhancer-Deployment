@@ -3,10 +3,7 @@ version: '3.8'
 services:
   # 1. React Frontend Service
   frontend:
-    build:
-      context: ./frontend
-      args:
-        - VITE_API_BASE_URL=http://localhost:5000
+    build: ./frontend
     ports:
       - "3000:3000"
     environment:
@@ -22,6 +19,12 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - "5000:5000"
+    volumes:
+      - ./backend/api/src:/app/api/src
+      - ./backend/database/src:/app/database/src
+    # Provides GEMINI_API_KEY (and JWT_SECRET) for the Veda assistant
+    env_file:
+      - ./backend/api/.env
     environment:
       # AWS Credentials for S3, SQS, and DynamoDB access
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -30,11 +33,17 @@ services:
       - SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/240037737007/ImageProcessingQueue
       - RAW_BUCKET_NAME=${RAW_BUCKET_NAME}
       - PROCESSED_BUCKET_NAME=${PROCESSED_BUCKET_NAME}
-      - JWT_SECRET=${JWT_SECRET}
 
   # 3. Python OpenCV Worker Service
   worker:
     build: ./backend/worker
+    volumes:
+      - ./backend/worker/worker.py:/app/worker.py
+      - ./backend/worker/bone_classifier_best.pt:/app/bone_classifier_best.pt
+      - ./backend/worker/fracture_best.pt:/app/fracture_best.pt
+      - ./backend/worker/best.pt:/app/best.pt
+    env_file:
+      - ./backend/api/.env
     environment:
       - PYTHONUNBUFFERED=1
       # AWS Credentials for S3, SQS, and DynamoDB access
@@ -59,4 +68,4 @@ services:
       - /dev/disk/:/dev/disk:ro
     devices:
       - /dev/kmsg
-    restart: unless-stopped
+    restart: unless-stopped

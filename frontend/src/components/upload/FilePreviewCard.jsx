@@ -16,13 +16,26 @@ const FilePreviewCard = ({ file, onRemove, uploadProgress = 0, status = 'pending
 
   useEffect(() => {
     // Generate object URL for image previews
-    if (file && file.type.startsWith('image/')) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
-      
-      // Cleanup
-      return () => URL.revokeObjectURL(objectUrl);
+    let objectUrl = null;
+    if (file && file.type && file.type.startsWith('image/')) {
+      try {
+        objectUrl = URL.createObjectURL(file);
+        setPreview(objectUrl);
+      } catch (err) {
+        // Fallback for environments lacking full Blob/Object URL support
+        setPreview(null);
+      }
     }
+
+    return () => {
+      if (objectUrl) {
+        try {
+          URL.revokeObjectURL(objectUrl);
+        } catch (e) {
+          // Ignore revoke errors on cleanup
+        }
+      }
+    };
   }, [file]);
 
   const formatFileSize = (bytes) => {
@@ -64,7 +77,7 @@ const FilePreviewCard = ({ file, onRemove, uploadProgress = 0, status = 'pending
       <div className="flex-grow min-w-0 pr-10">
         <div className="flex justify-between items-center mb-1">
           <p className="text-sm font-semibold text-slate-700 truncate" title={file.name}>
-            {truncateFilename(file.name)}
+            {truncateFilename(file.name, 28)}
           </p>
           <span className="text-xs text-slate-400 font-medium whitespace-nowrap ml-2">
             {formatFileSize(file.size)}
