@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Serve the application using Nginx
-FROM nginx:1.25-alpine
+FROM nginx:1.31-alpine
 
 # Set up a non-root user and group
 RUN addgroup -S nginxgroup && adduser -S nginxuser -G nginxgroup
