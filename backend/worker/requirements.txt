@@ -1,6 +1,6 @@
 boto3==1.28.38
 opencv-python-headless==4.8.0.76
-numpy==1.25.2
+numpy==2.5.4
 python-dotenv==1.0.0
 requests==2.31.0
 ultralytics==8.0.200
