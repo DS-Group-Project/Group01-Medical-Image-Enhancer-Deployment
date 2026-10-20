@@ -12,6 +12,11 @@ kaggle.json
 *.pem
 *.key
 
+# Kaggle / Secrets
+kaggle.json
+*.pem
+*.key
+
 # ==============================================================================
 # Dependencies
 # ==============================================================================
@@ -54,6 +59,11 @@ runs/
 *.zip
 *.tar
 *.tar.gz
+
+# Training artifacts & runs (large datasets and training checkpoints)
+trained_models/
+runs/
+.cache/
 
 # Training artifacts & runs (large datasets and training checkpoints)
 trained_models/

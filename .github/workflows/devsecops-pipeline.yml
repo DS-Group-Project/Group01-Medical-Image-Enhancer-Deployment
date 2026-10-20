@@ -47,17 +47,14 @@ jobs:
       # Frontend Tests
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Lint Frontend
         working-directory: ./frontend
-        env:
-          VITE_USE_MOCK: "false"
         run: npm run lint
 
       - name: Test Frontend
         working-directory: ./frontend
-        continue-on-error: true
         run: npm test
 
       # Backend Tests
@@ -71,7 +68,6 @@ jobs:
 
       - name: Test Backend API
         working-directory: ./backend/api
-        continue-on-error: true
         run: npm test
 
   build-and-scan:
@@ -93,7 +89,7 @@ jobs:
         run: docker build -t medical-api:latest -f ./backend/Dockerfile.api ./backend
 
       - name: Build React Frontend Docker Image
-        run: docker build --build-arg VITE_USE_MOCK=false -t medical-frontend:latest ./frontend
+        run: docker build -t medical-frontend:latest ./frontend
 
       - name: Run Trivy Vulnerability Scanner on Python Worker
         uses: aquasecurity/trivy-action@master
