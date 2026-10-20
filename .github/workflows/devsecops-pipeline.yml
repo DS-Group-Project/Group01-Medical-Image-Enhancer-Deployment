@@ -93,7 +93,7 @@ jobs:
         run: docker build -t medical-api:latest -f ./backend/Dockerfile.api ./backend
 
       - name: Build React Frontend Docker Image
-        run: docker build -t medical-frontend:latest ./frontend
+        run: docker build --build-arg VITE_USE_MOCK=false -t medical-frontend:latest ./frontend
 
       - name: Run Trivy Vulnerability Scanner on Python Worker
         uses: aquasecurity/trivy-action@master
