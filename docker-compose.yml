@@ -3,10 +3,7 @@ version: '3.8'
 services:
   # 1. React Frontend Service
   frontend:
-    build:
-      context: ./frontend
-      args:
-        - VITE_API_BASE_URL=http://localhost:5000
+    build: ./frontend
     ports:
       - "3000:3000"
     environment:
@@ -36,7 +33,6 @@ services:
       - SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/240037737007/ImageProcessingQueue
       - RAW_BUCKET_NAME=${RAW_BUCKET_NAME}
       - PROCESSED_BUCKET_NAME=${PROCESSED_BUCKET_NAME}
-      - JWT_SECRET=${JWT_SECRET}
 
   # 3. Python OpenCV Worker Service
   worker:

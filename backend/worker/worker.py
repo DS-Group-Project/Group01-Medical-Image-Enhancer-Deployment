@@ -273,7 +273,6 @@ def process_single_message(message):
 
             try:
                 # ── Step A: Download from S3 (Parallel I/O) ─────────────────────────
-                print(json.dumps({"action": "audit_s3_download", "jobId": job_id, "bucket": RAW_BUCKET, "key": image_key, "msg": "Downloading original image from S3"}))
                 s3_client.download_file(RAW_BUCKET, image_key, local_raw_path)
 
                 # ── Step B: Process with OpenCV (CLAHE + USM) ───────────────────────
@@ -286,7 +285,6 @@ def process_single_message(message):
 
                 # ── Step C: Upload to Processed Bucket (Parallel I/O) ───────────────
                 processed_key = f"enhanced/{job_id}/{safe_key}"
-                print(json.dumps({"action": "audit_s3_upload", "jobId": job_id, "bucket": PROCESSED_BUCKET, "key": processed_key, "msg": "Uploading enhanced image to S3"}))
                 s3_client.upload_file(local_processed_path, PROCESSED_BUCKET, processed_key)
 
                 # ── Step D: Update DynamoDB → completed (Parallel I/O) ──────────────

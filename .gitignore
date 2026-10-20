@@ -2,10 +2,12 @@
 # Environment & Sensitive Credentials
 # ==============================================================================
 .env
-.env.*
-*.env
-**/.env
-**/.env.*
+.env.local
+.env.*.local
+backend/api/.env
+frontend/.env
+
+# Kaggle / Secrets
 kaggle.json
 *.pem
 *.key
@@ -28,7 +30,6 @@ __pycache__/
 *.pyd
 .Python
 *.egg-info/
-*.egg
 .venv/
 venv/
 env/
@@ -54,31 +55,34 @@ runs/
 *.tar
 *.tar.gz
 
-# ==============================================================================
-# Build Output & Caches
-# ==============================================================================
+# Training artifacts & runs (large datasets and training checkpoints)
+trained_models/
+runs/
+.cache/
+
+# Build outputs
 dist/
 **/dist/
 build/
 **/build/
 .cache/
 *.min.js.map
+*.zip
 
 # ==============================================================================
 # Logs & Process IDs
 # ==============================================================================
 *.log
 logs/
-*.pid
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # ==============================================================================
 # OS & IDE Files
 # ==============================================================================
 .DS_Store
 Thumbs.db
+
+# IDE & Editor files
 .vscode/
 .idea/
 *.swp
