@@ -1,4 +1,6 @@
-# Environment variables
+# ==============================================================================
+# Environment & Sensitive Credentials
+# ==============================================================================
 .env
 .env.local
 .env.*.local
@@ -10,14 +12,25 @@ kaggle.json
 *.pem
 *.key
 
+# Kaggle / Secrets
+kaggle.json
+*.pem
+*.key
+
+# ==============================================================================
 # Dependencies
+# ==============================================================================
 node_modules/
 **/node_modules/
+package-lock.json.bak
 
-# Python
+# ==============================================================================
+# Python & Virtual Environments
+# ==============================================================================
 __pycache__/
 **/__pycache__/
 *.py[cod]
+*$py.class
 *.pyo
 *.pyd
 .Python
@@ -25,6 +38,32 @@ __pycache__/
 .venv/
 venv/
 env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==============================================================================
+# ML / AI Large Model Weights, Training Runs & Archives
+# (GitHub rejects files >100MB; store weights in S3 or release tags)
+# ==============================================================================
+trained_models/
+runs/
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.bin
+*.weights
+*.h5
+*.zip
+*.tar
+*.tar.gz
+
+# Training artifacts & runs (large datasets and training checkpoints)
+trained_models/
+runs/
+.cache/
 
 # Training artifacts & runs (large datasets and training checkpoints)
 trained_models/
@@ -33,22 +72,34 @@ runs/
 
 # Build outputs
 dist/
+**/dist/
 build/
+**/build/
+.cache/
 *.min.js.map
 *.zip
 
-# Logs
+# ==============================================================================
+# Logs & Process IDs
+# ==============================================================================
 *.log
 logs/
 npm-debug.log*
 
-# OS files
+# ==============================================================================
+# OS & IDE Files
+# ==============================================================================
 .DS_Store
 Thumbs.db
 
 # IDE & Editor files
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Docker
-*.pid
+# ==============================================================================
+# Temporary / Working Folders
+# ==============================================================================
+query
+Group01-Medical-Image-Enhancer-Deployment/
