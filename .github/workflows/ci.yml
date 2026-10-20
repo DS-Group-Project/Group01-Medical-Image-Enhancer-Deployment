@@ -57,7 +57,8 @@ jobs:
 
       - name: Test Frontend
         working-directory: ./frontend
-        run: npx vitest run
+        run: |
+          npm test > test_output.txt 2>&1 || (cat test_output.txt >> $GITHUB_STEP_SUMMARY && cat test_output.txt && exit 1)
 
       # Backend Pipeline
       - name: Install Backend API Dependencies
