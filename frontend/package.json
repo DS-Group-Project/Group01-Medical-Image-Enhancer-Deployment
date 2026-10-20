@@ -8,7 +8,8 @@
     "prebuild": "node scripts/check-mock.js",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "node scripts/check-mock.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "axios": "^1.7.7",
