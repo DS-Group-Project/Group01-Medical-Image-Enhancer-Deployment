@@ -30,6 +30,7 @@ A secure, cloud-native, full-stack application that enhances medical images (X-r
 - [DevSecOps Pipeline](#-devsecops-pipeline)
 - [Testing & Load Testing](#-testing--load-testing)
 - [Security](#-security)
+- [GitHub Repositories](#-github-repositories)
 - [Contributing](#-contributing)
 
 ---
@@ -472,6 +473,31 @@ See `frontend/SECURITY.md` for the full vulnerability disclosure policy.
    git push origin feature/your-feature-name
    ```
 5. Open a Pull Request against `main`
+
+---
+
+## 🗂️ GitHub Repositories
+
+This project follows a **decoupled architecture**. The source code is divided into separate repositories for frontend, backend, and deployment to follow industry best practices.
+
+| Repository | Description | Link |
+|------------|-------------|------|
+| 🚀 **Main Deployment** | Integrated `docker-compose` setup, CI/CD DevSecOps pipelines (Trivy), Resource Monitoring (cAdvisor), and full system instructions | [![Deployment](https://img.shields.io/badge/GitHub-Deployment-181717?style=flat-square&logo=github)](https://github.com/DS-Group-Project/Group01-Medical-Image-Enhancer-Deployment) |
+| 🎨 **Frontend** | React.js Single Page Application and UI components | [![Frontend](https://img.shields.io/badge/GitHub-Frontend-181717?style=flat-square&logo=github)](https://github.com/DS-Group-Project/Group01-Medical-Image-Enhancer-Frontend) |
+| ⚙️ **Backend & Worker** | Node.js REST API Gateway and the Python OpenCV Background Worker | [![Backend](https://img.shields.io/badge/GitHub-Backend-181717?style=flat-square&logo=github)](https://github.com/DS-Group-Project/Group01-Medical-Image-Enhancer-Backend) |
+
+### Clone Individual Repositories
+
+```bash
+# Main Deployment Repository (docker-compose + CI/CD)
+git clone https://github.com/DS-Group-Project/Group01-Medical-Image-Enhancer-Deployment.git
+
+# Frontend Repository (React.js SPA)
+git clone https://github.com/DS-Group-Project/Group01-Medical-Image-Enhancer-Frontend.git
+
+# Backend & Worker Repository (Node.js API + Python Worker)
+git clone https://github.com/DS-Group-Project/Group01-Medical-Image-Enhancer-Backend.git
+```
 
 ---
 
