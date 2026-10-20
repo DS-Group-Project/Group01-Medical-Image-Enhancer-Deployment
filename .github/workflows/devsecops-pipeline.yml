@@ -2,22 +2,20 @@ name: DevSecOps Pipeline
 
 on:
   push:
-    
     branches: [ "feature/python-worker", "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-
   build-and-scan:
     name: Build Image & Trivy Security Scan
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build Python Worker Docker Image
-         
-        
         run: docker build -t medical-worker:latest ./backend/worker
 
       - name: Run Trivy Vulnerability Scanner
@@ -25,7 +23,6 @@ jobs:
         with:
           image-ref: 'medical-worker:latest'
           format: 'table'
-         
           severity: 'CRITICAL,HIGH'
           exit-code: '0' 
           ignore-unfixed: true

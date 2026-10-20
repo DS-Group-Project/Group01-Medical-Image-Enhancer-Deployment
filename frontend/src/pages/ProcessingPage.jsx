@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   CheckCircle, 
@@ -17,6 +17,7 @@ import { mockUploadService } from '../services/mockData';
 import { usePolling } from '../hooks/usePolling';
 import StatusBadge from '../components/ui/StatusBadge';
 import { safeLog } from '../utils/safeLog';
+import { buildBatchUrl, resolveBatchIds } from '../utils/helpers';
 import api from '../services/api';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
@@ -30,9 +31,9 @@ const STEPS = [
 ];
 
 // Time (ms) to visually hold each step before advancing to the next
-const STEP_ANIMATION_DELAY = 2000;
+const STEP_ANIMATION_DELAY = 350;
 // Time (ms) to show the "Enhancement Complete!" card before navigating to viewer
-const COMPLETION_DISPLAY_DELAY = 3000;
+const COMPLETION_DISPLAY_DELAY = 600;
 
 /**
  * Maps a backend status string to the minimum step index the stepper should reach.
@@ -51,6 +52,12 @@ function backendStatusToTargetIndex(status) {
 export default function ProcessingPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const batchParam = searchParams.get('batch');
+  const batchIds = resolveBatchIds(batchParam, location.state?.jobIds, jobId);
+
   const [jobData, setJobData] = useState(null);
   const [backendStatus, setBackendStatus] = useState('pending'); // real status from API
   const [displayIndex, setDisplayIndex] = useState(0);           // animated visual step
@@ -72,38 +79,60 @@ export default function ProcessingPage() {
     }
 
     if (displayIndex < targetIndex) {
+      // If already finished on backend, advance swiftly (200ms), otherwise smooth 350ms
+      const delay = backendStatus === 'completed' ? 200 : STEP_ANIMATION_DELAY;
       animationTimer.current = setTimeout(() => {
         setDisplayIndex(prev => prev + 1);
-      }, STEP_ANIMATION_DELAY);
+      }, delay);
     }
 
     return () => {
       if (animationTimer.current) clearTimeout(animationTimer.current);
     };
-  }, [displayIndex, targetIndex]);
+  }, [displayIndex, targetIndex, backendStatus]);
 
   // ── When the animation reaches "completed" (index 3), show the card then navigate ──
   useEffect(() => {
     if (displayIndex === 3 && backendStatus === 'completed' && !showCompletion) {
       setShowCompletion(true);
       completionTimer.current = setTimeout(() => {
-        navigate(`/viewer/${jobId}`);
+        const targetViewerUrl = buildBatchUrl('/viewer', jobId, batchIds);
+        navigate(targetViewerUrl, { state: { jobIds: batchIds } });
       }, COMPLETION_DISPLAY_DELAY);
     }
 
     return () => {
       if (completionTimer.current) clearTimeout(completionTimer.current);
     };
-  }, [displayIndex, backendStatus, showCompletion, navigate, jobId]);
+  }, [displayIndex, backendStatus, showCompletion, navigate, jobId, batchIds]);
 
-  // ── Lightweight polling: only fetches status (no image blobs) ──
+  // ── Lightweight polling: fetches status in 1 request (no individual HTTP storms) ──
   const fetchStatus = useCallback(async () => {
     try {
-      const response = await api.get(`/jobs/${jobId}`);
-      const data = response.data;
-      if (!jobData) setJobData(data);
+      if (batchIds.length > 1) {
+        const validResults = await activeService.getBatchJobsStatus(batchIds);
+        const primaryJob = validResults.find(j => j.id === jobId || j.jobId === jobId) || validResults[0];
+        if (primaryJob && !jobData) setJobData(primaryJob);
 
-      setBackendStatus(data.status);
+        const allCompleted = validResults.length === batchIds.length && validResults.every(j => j.status === 'completed');
+        const anyFailed = validResults.some(j => j.status === 'failed');
+
+        if (allCompleted) {
+          setBackendStatus('completed');
+        } else if (anyFailed) {
+          setBackendStatus('failed');
+        } else if (validResults.some(j => j.status === 'processing')) {
+          setBackendStatus('processing');
+        } else {
+          setBackendStatus('pending');
+        }
+      } else {
+        const response = await api.get(`/jobs/${jobId}`);
+        const data = response.data;
+        if (!jobData) setJobData(data);
+
+        setBackendStatus(data.status);
+      }
       setError(null);
     } catch (err) {
       safeLog.error('Failed to fetch status', err);
@@ -111,7 +140,7 @@ export default function ProcessingPage() {
     } finally {
       setLoading(false);
     }
-  }, [jobId, jobData]);
+  }, [jobId, batchIds, jobData]);
 
   // Initial fetch
   useEffect(() => {
@@ -119,10 +148,10 @@ export default function ProcessingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
-  // Keep polling until the backend says completed or failed
+  // Keep polling rapidly (1000ms) until the backend says completed or failed
   usePolling(
     fetchStatus, 
-    3000, 
+    1000, 
     backendStatus !== 'completed' && backendStatus !== 'failed' && !error
   );
 
@@ -182,11 +211,11 @@ export default function ProcessingPage() {
         {/* Header */}
         <div className="text-center mb-10">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-            Processing Your Image
+            {batchIds.length > 1 ? `Processing Your Images (${batchIds.length} Scans)` : 'Processing Your Image'}
           </h1>
           <p className="text-slate-500 flex items-center justify-center gap-2">
             <ImageIcon className="w-4 h-4" />
-            {jobData?.filename || 'Unknown File'}
+            {batchIds.length > 1 ? `Batch Examination Series (${batchIds.length} Assets)` : (jobData?.filename || 'Unknown File')}
             <span className="text-slate-300">•</span>
             ID: {jobId?.slice(0, 8)}…
           </p>

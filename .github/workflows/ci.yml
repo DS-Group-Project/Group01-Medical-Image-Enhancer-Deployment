@@ -1,0 +1,71 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  secret-scan:
+    name: Secret Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/api/package-lock.json
+
+      # Frontend Pipeline
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Lint Frontend
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Test Frontend
+        working-directory: ./frontend
+        run: npx vitest run
+
+      # Backend Pipeline
+      - name: Install Backend API Dependencies
+        working-directory: ./backend/api
+        run: npm ci
+        
+      - name: Install Backend Database Dependencies
+        working-directory: ./backend/database
+        run: npm ci
+
+      - name: Test Backend
+        working-directory: ./backend/api
+        run: npx vitest run

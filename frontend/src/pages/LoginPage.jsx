@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Activity, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useAuth } from '../context/AuthContext'; // Assumed path
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,11 +17,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Soft client-side throttle after repeated failures. This is UX only — it
-  // slows down a casual retry loop and makes brute-forcing feel unproductive,
-  // but it is trivially bypassed by anyone hitting the API directly, so the
-  // backend must independently rate-limit /auth/login (e.g. by IP + email,
-  // with exponential backoff or an account lockout after N attempts).
+  // Soft client-side throttle after repeated failures.
   const isLocked = lockedUntil !== null && Date.now() < lockedUntil;
 
   const validate = () => {
@@ -42,7 +38,8 @@ export default function LoginPage() {
     e.preventDefault();
     if (isLocked) {
       const waitSec = Math.ceil((lockedUntil - Date.now()) / 1000);
-      toast.error(`Too many attempts. Try again in ${waitSec}s.`);
+      const waitMin = Math.ceil(waitSec / 60);
+      toast.error(`Too many attempts. Try again in ${waitMin > 1 ? `${waitMin} minutes` : `${waitSec}s`}.`);
       return;
     }
     if (!validate()) return;
@@ -54,12 +51,31 @@ export default function LoginPage() {
       toast.success('Successfully logged in!');
       navigate('/');
     } catch (error) {
+      const errorCode = error.response?.data?.error;
+
+      // 1. Backend එකෙන් account එක lock කර ඇති බව ලැබුණු විට
+      if (errorCode === 'ACCOUNT_LOCKED') {
+        setLockedUntil(Date.now() + 15 * 60 * 1000); // විනාඩි 15 ක්
+        setFailedAttempts(0);
+        toast.error('Account locked due to too many failed attempts. Please wait 15 minutes.');
+        return;
+      }
+
+      // 2. Client-side attempts count එක 5 ක් වූ විට
       const nextAttempts = failedAttempts + 1;
       setFailedAttempts(nextAttempts);
+
       if (nextAttempts >= 5) {
-        setLockedUntil(Date.now() + 30_000);
+        setLockedUntil(Date.now() + 15 * 60 * 1000); // විනාඩි 15 (15 * 60 * 1000 ms)
         setFailedAttempts(0);
-        toast.error('Too many failed attempts. Please wait 30 seconds.');
+        toast.error('Too many failed attempts. Please wait 15 minutes.');
+      } else {
+        const errorMsg =
+          error.response?.data?.message ||
+          (errorCode === 'INVALID_CREDENTIALS' && 'Invalid email or password.') ||
+          'Failed to sign in. Please check your credentials.';
+
+        toast.error(errorMsg);
       }
     } finally {
       setIsLoading(false);

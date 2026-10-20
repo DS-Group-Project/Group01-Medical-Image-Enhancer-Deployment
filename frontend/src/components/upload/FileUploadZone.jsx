@@ -4,20 +4,21 @@ import { motion } from 'framer-motion';
 import { UploadCloud, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { validateFileSignatures } from '../../utils/fileValidation';
+import { MAX_UPLOAD_FILES } from '../../utils/constants';
 
 /**
  * FileUploadZone component for drag and drop file uploads
  * 
  * @param {Object} props
  * @param {Function} props.onFilesSelected - Callback when files are accepted
- * @param {number} props.maxFiles - Maximum number of files allowed (default 10)
+ * @param {number} props.maxFiles - Maximum number of files allowed (default 100)
  * @param {Object} props.acceptedTypes - Accepted mime types, defaults to { 'image/jpeg': [], 'image/png': [], 'application/dicom': [] }
  * @param {number} props.maxSize - Maximum file size in bytes (default 50MB)
  * @param {boolean} props.disabled - Whether the upload zone is disabled
  */
 const FileUploadZone = ({ 
   onFilesSelected, 
-  maxFiles = 10, 
+  maxFiles = MAX_UPLOAD_FILES, 
   acceptedTypes = {
     'image/jpeg': ['.jpg', '.jpeg'],
     'image/png': ['.png'],
@@ -148,7 +149,7 @@ const FileUploadZone = ({
       </div>
 
       <p className="absolute bottom-4 text-xs text-slate-400 font-medium">
-        Supports JPG, PNG, DICOM &bull; Max {Math.round(maxSize / 1024 / 1024)}MB per file
+        Supports JPG, PNG, DICOM &bull; Up to {maxFiles} files &bull; Max {Math.round(maxSize / 1024 / 1024)}MB per file
       </p>
     </motion.div>
   );

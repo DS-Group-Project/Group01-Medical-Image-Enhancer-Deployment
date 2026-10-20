@@ -122,3 +122,58 @@ export function validateImageFile(file) {
     errors,
   };
 }
+
+/**
+ * Safely format batch query string and cache in sessionStorage if large
+ * to prevent 414 URI Too Long errors when dealing with up to 100 images.
+ */
+export function buildBatchUrl(basePath, activeId, batchIds = []) {
+  if (!batchIds || batchIds.length <= 1) {
+    return `${basePath}/${activeId}`;
+  }
+
+  try {
+    sessionStorage.setItem('active_batch', JSON.stringify(batchIds));
+    if (activeId) sessionStorage.setItem(`batch_${activeId}`, JSON.stringify(batchIds));
+  } catch (_) {}
+
+  // Keep URL clean: if <= 8 items, pass in query, otherwise use ?batch=session
+  if (batchIds.length <= 8) {
+    return `${basePath}/${activeId}?batch=${batchIds.join(',')}`;
+  }
+  return `${basePath}/${activeId}?batch=session`;
+}
+
+/**
+ * Resolve batch IDs from URL query param, location state, or sessionStorage.
+ */
+export function resolveBatchIds(batchParam, locationStateIds, currentJobId) {
+  let ids = [];
+
+  if (batchParam === 'session') {
+    try {
+      const cached = (currentJobId && sessionStorage.getItem(`batch_${currentJobId}`)) || sessionStorage.getItem('active_batch');
+      if (cached) ids = JSON.parse(cached);
+    } catch (_) {}
+  } else if (batchParam) {
+    ids = batchParam.split(',').filter(Boolean);
+  }
+
+  if (!ids.length && Array.isArray(locationStateIds) && locationStateIds.length) {
+    ids = locationStateIds;
+  }
+
+  if (!ids.length && currentJobId) {
+    try {
+      const cached = sessionStorage.getItem(`batch_${currentJobId}`) || sessionStorage.getItem('active_batch');
+      if (cached) ids = JSON.parse(cached);
+    } catch (_) {}
+  }
+
+  if (!ids.length && currentJobId) {
+    ids = [currentJobId];
+  }
+
+  return ids;
+}
+

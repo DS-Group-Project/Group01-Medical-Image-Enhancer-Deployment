@@ -13,6 +13,15 @@ vi.mock('../../../database/src/usersRepository.js', () => ({
   createUser: vi.fn(),
   getUserByEmail: vi.fn(),
   verifyPassword: vi.fn(),
+  resetFailedLogin: vi.fn(),
+  recordFailedLogin: vi.fn(),
+}));
+
+vi.mock('../../../database/src/sessionsRepository.js', () => ({
+  createSession: vi.fn().mockResolvedValue({ refreshToken: 'mock-refresh', familyId: 'fam-1' }),
+  getSession: vi.fn(),
+  markSessionUsed: vi.fn(),
+  revokeFamily: vi.fn(),
 }));
 
 const app = express();
