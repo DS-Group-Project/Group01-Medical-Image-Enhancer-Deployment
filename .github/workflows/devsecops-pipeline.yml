@@ -51,6 +51,8 @@ jobs:
 
       - name: Lint Frontend
         working-directory: ./frontend
+        env:
+          VITE_USE_MOCK: "false"
         run: npm run lint
 
       - name: Test Frontend
