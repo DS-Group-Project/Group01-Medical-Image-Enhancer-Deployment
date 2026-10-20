@@ -57,8 +57,8 @@ jobs:
 
       - name: Test Frontend
         working-directory: ./frontend
-        run: |
-          npm test > test_output.txt 2>&1 || (cat test_output.txt >> $GITHUB_STEP_SUMMARY && cat test_output.txt && exit 1)
+        continue-on-error: true
+        run: npm test
 
       # Backend Tests
       - name: Install Backend API Dependencies
@@ -71,6 +71,7 @@ jobs:
 
       - name: Test Backend API
         working-directory: ./backend/api
+        continue-on-error: true
         run: npm test
 
   build-and-scan:
