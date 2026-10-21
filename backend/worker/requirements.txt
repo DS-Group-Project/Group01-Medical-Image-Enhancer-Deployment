@@ -3,5 +3,5 @@ opencv-python-headless==4.8.0.76
 numpy==1.25.2
 python-dotenv==1.0.0
 requests==2.31.0
-ultralytics==8.0.200
+ultralytics==8.4.182
 timm>=1.0.0
