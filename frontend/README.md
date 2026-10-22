@@ -9,7 +9,7 @@
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-> A modern, production-grade single-page application for uploading, enhancing, and analyzing medical images (JPEG, PNG, DICOM) using deep-learning backend services.
+> A modern, production-grade single-page application for uploading, enhancing, and analyzing medical images (JPEG, PNG, DICOM) using deep-learning backend  services.
 
 [Getting Started](#-getting-started) · [Architecture](#-architecture) · [Features](#-features) · [Contributing](#-contributing)
 
